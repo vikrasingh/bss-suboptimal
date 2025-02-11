@@ -1,4 +1,4 @@
-function  [header,rParaOut,numOfBoxDel,dataMat,XstarNormSpace,outputPara,...
+function  [header,rParaOut,dataMat,XstarNormSpace,outputPara,...
         fbest]=runAnEgLLS(nPts,pDim,yArray,xMatrix,trueb,A,b,c,tmax,targetfbest,...
                            xRelaxedOpt,fxRelaxedOpt,preXstarNormSpace,InpFilCtr,pDimCtr,egCtr,setCtr,paraCtr,...
                            IotherPara,IstopCondPara,choseniPara,rPara,version_flag,delCondPara,...
@@ -6,9 +6,6 @@ function  [header,rParaOut,numOfBoxDel,dataMat,XstarNormSpace,outputPara,...
    
              
         %% Loop to call different versions for above defined example data
-        
-        colIndex=2;  % Col 1. trueb , Col 2. xRelaxedOpt
-        
         str1=append('IntermSol.',sprintf('setCtr%d-',setCtr),level1FolderName);saveFilePathIntermOut=fullfile(level1FolderPath,sprintf('%s.txt',str1));
         str2=append('lbFafbest_',sprintf('setCtr%d-',setCtr),level1FolderName);saveFilePathlbFandfbest=fullfile(level1FolderPath,sprintf('%s.txt',str2));
        
@@ -25,11 +22,11 @@ function  [header,rParaOut,numOfBoxDel,dataMat,XstarNormSpace,outputPara,...
             
             textfileIntermOut=fopen( append(level1FolderPath,'\summary_',sprintf('TM%g',tmax),'.txt' ),'a');  % save another text file for intermediate results for stepTm values
             fprintf(textfileIntermOut,'%s \n',datetime('now'));
-            [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x_tilde,Xstar,fbest]=setupForIntvalAlgo(nPts,pDim,yArray,xMatrix,trueb,...
+            [XstarNormSpace,xRelaxedOpt2,outputPara,rParaOut,fx_tilde,x_tilde,Xstar,fbest]=setupForIntvalAlgo(nPts,pDim,yArray,xMatrix,trueb,...
                                                    A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,choseniPara,rPara,version_flag,xRelaxedOpt,fxRelaxedOpt,textfileIntermOut,toDebug);
             fprintf(textfileIntermOut,'%s \n',datetime('now'));
             fclose(textfileIntermOut); 
-            dataMat=[fbest;outputPara(7);rParaOut.cpuIntvalAlgo/60;outputPara(5);outputPara(15);Xstar];  % for table format
+            dataMat=[fbest;outputPara(7);rParaOut.cpuAlg/60;outputPara(5);outputPara(15);Xstar];  % for table format
             if toDebug>=1,fprintf(fileid,'Date time =%s \n',datetime('now'));fclose(fileid);end
             
         end %
@@ -54,7 +51,7 @@ function  [header,rParaOut,numOfBoxDel,dataMat,XstarNormSpace,outputPara,...
             textfilelbFandfbest=fopen(saveFilePathlbFandfbest,'w');
 
             textfileName=struct('interm_out',textfileIntermOut,'box_flag',textfileBoxFlag,'lbFandfbest',textfilelbFandfbest);
-               [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x_tilde,Xstar,fbest]=setupForIntvalAlgo(nPts,pDim,yArray,xMatrix,trueb,...
+               [XstarNormSpace,xRelaxedOpt2,outputPara,rParaOut,fx_tilde,x_tilde,Xstar,fbest]=setupForIntvalAlgo(nPts,pDim,yArray,xMatrix,trueb,...
                                                    A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,choseniPara,rPara,version_flag,xRelaxedOpt,fxRelaxedOpt,textfileName,toDebug); 
             if toDebug==2                                     
                 fprintf(textfileIntermOut,'%s \n',datetime('now'));
@@ -62,7 +59,7 @@ function  [header,rParaOut,numOfBoxDel,dataMat,XstarNormSpace,outputPara,...
             elseif toDebug==1, fclose(textfileIntermOut);    
             end  
             fclose(textfileName.lbFandfbest);                                                                              
-            dataMat=[fbest;outputPara(7); rParaOut.cpuIntvalAlgo/60 ;outputPara(5);outputPara(15);Xstar];  % for table format
+            dataMat=[fbest;outputPara(7); rParaOut.cpuAlg/60 ;outputPara(5);outputPara(15);Xstar];  % for table format
             if toDebug==1,fprintf(fileid,'Date time =%s \n',datetime('now'));fclose(fileid);end
   
         end % end flag which version to run using interval algo

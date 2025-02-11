@@ -21,7 +21,6 @@ function  [out]=runLLS(pDim,nPts,infoCol,nDcol,alphaValues,lambdaValues,tmaxValu
     
     % initialization of targetcputime, we will change each value to max. hard cpulimit in the paraid loop below
     targetcpuValues=ones(1,length(targetfbestValues))*abs( IstopCondPara(chooseParaToRun(1,2),6) ); % hard cpulimit for the first set will be the targetcpuValues for all tmax values all pDim, one example
-    numOfBoxDelAllSets=zeros(8,1);  % dim should be same as numOfBoxDel variable in setupForIntvlAlgo.m line 31
     level6timefileid=fopen(sprintf('timestampL6pDim%d.txt',pDim),'a+');intimelevel6=datetime('now'); % timestamp Level 6 for the starting time
     fprintf(level6timefileid,'Level 6 \n');fprintf(level6timefileid,'start time=%s \n',intimelevel6); incputimelevel6=cputime;fclose(level6timefileid); 
     
@@ -171,7 +170,6 @@ function  [out]=runLLS(pDim,nPts,infoCol,nDcol,alphaValues,lambdaValues,tmaxValu
                     
                     if maxVioRefQMoverTm<outputPara(16), maxVioRefQMoverTm=outputPara(16); end
                     if maxVioInfQMoverTm<outputPara(17),maxVioInfQMoverTm=outputPara(17); end
-                    numOfBoxDelAllSets=numOfBoxDelAllSets+numOfBoxDel;
                     
                     level1timefileid=fopen(fullfile(level1FolderPath,'timestampL1.txt'),'a+');
                     outtimelevel1=datetime('now');fprintf(level1timefileid,'End time=%s \n',outtimelevel1);fprintf(level1timefileid,'Time taken for the run=%1.8f min \n',minutes(outtimelevel1-intimelevel1)); % timestamp level0 at the end
@@ -284,7 +282,7 @@ function  [out]=runLLS(pDim,nPts,infoCol,nDcol,alphaValues,lambdaValues,tmaxValu
     
     level6timefileid=fopen(sprintf('timestampL6pDim%d.txt',pDim),'a+');
     outtimelevel6=datetime('now');fprintf(level6timefileid,'End time=%s \n',outtimelevel6);fprintf(level6timefileid,'Time taken for the run=%1.8f min \n',minutes(outtimelevel6-intimelevel6)); % timestamp level 6 at the end
-    outcputimelevel6=(cputime-incputimelevel6)/60;fprintf(level6timefileid,'cputime for the run=%1.6f min \n',outcputimelevel6);fprintf(level6timefileid,'numOfBoxDelAllSets=');printArray(numOfBoxDelAllSets','%d',level6timefileid);fclose(level6timefileid);
+    outcputimelevel6=(cputime-incputimelevel6)/60;fprintf(level6timefileid,'cputime for the run=%1.6f min \n',outcputimelevel6);fclose(level6timefileid);
 
     fclose('all');
     fprintf('total wall clock time for pDim %d run =%1.6f min. \n',pDim,toc(totalClockTime)/60);

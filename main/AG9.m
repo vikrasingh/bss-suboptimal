@@ -1,4 +1,4 @@
-function [rParaOut,X,xtilde,fxtilde,x,fx]=AG9(p,lb,ub,A,d,c,k,xRelaxedOpt,ixstar,diagInv,targetfbest ,IotherPara,IstopCondPara, iPara,rPara,textfileName,todebug)
+function [rParaOut,X,xtilde,fxtilde,x,fx]=AG9(p,lb,ub,A,d,c,k,xRelaxedOpt,diagInv,targetfbest ,IotherPara,IstopCondPara, iPara,rPara)
 % 21 May24
 
 % parameters for quad. min.

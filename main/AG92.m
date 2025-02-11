@@ -1,13 +1,8 @@
-function [rParaOut,X,xtilde,fxtilde,x,fx]=AG92(p,lb,ub,A,d,c,k,xRelaxedOpt,ixstar,diagInv,targetfbest ,IotherPara,IstopCondPara, iPara,rPara,textfileName,todebug)
+function [rParaOut,X,xtilde,fxtilde,x,fx]=AG92(p,A,d,c,k,xRelaxedOpt,diagInv,targetfbest ,IotherPara,IstopCondPara, iPara,rPara)
 % 21 May24
 %fprintf('tmax=%d \n',k);
 % parameters for quad. min.
 whichalgo=IotherPara(23); % selected algo. to fit the data in the reduced dim.
-if ismember(whichalgo,12:20)
-   isBoxed=0;  % are we using unconstrained or constrained version, if isBoxed=1 constrained, isBoxed=0 unconstrained 
-else
-   isBoxed=1;  % are we using unconstrained or constrained version, if isBoxed=1 constrained, isBoxed=0 unconstrained  
-end
 isTF=0; % whether to use target fbest during quad_min in the reduced space, we are not using target fbest inside quad.min. call
 isSoftStop=1; % to use soft stop while computing min. in the reduced space or not
 firstDigit=floor( IotherPara(21)/(10^(length(num2str(IotherPara(21)))-1)) );  % first digit of IotherPara(21) will tell use which version to use. 
@@ -26,11 +21,7 @@ Sstruct.nNonZeroEig=sum(diagD>rPara(1));     % find no. of non zero eigenvalues
 Sstruct.Q=Q(:, (k-Sstruct.nNonZeroEig+1):end );    % find Q matrix in the reduced space
 Sstruct.D=diagD( (k-Sstruct.nNonZeroEig+1):end );  % find diagD in the reduced space
 Sstruct.diagInv=diagInv(X);
-if isBoxed==0
-   [~,xhat,fX]=quad_min_algo_pool(k,A(X,X),d(X),c,[],[],xRelaxedOpt(X),Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest); 
-else
-   [~,xhat,fX]=quad_min_algo_pool(k,A(X,X),d(X),c,lb(X),ub(X),xRelaxedOpt(X),Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);  
-end
+[~,xhat,fX]=quad_min_algo_pool(k,A(X,X),d(X),c,[],[],xRelaxedOpt(X),Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest); 
 xtilde=zeros(p,1);xtilde(X)=xhat; fxtilde=fX;
 
 if p==k
@@ -40,7 +31,7 @@ if p==k
 end
 
 if k==1 || (p-k)==1
-   [rParaOut,X,xtilde,fxtilde,x,fx]=AG9(p,lb,ub,A,d,c,k,xRelaxedOpt,ixstar,diagInv,targetfbest ,IotherPara,IstopCondPara, iPara,rPara,textfileName,todebug);
+   [rParaOut,X,xtilde,fxtilde,x,fx]=AG9(p,[],[],A,d,c,k,xRelaxedOpt,diagInv,targetfbest ,IotherPara,IstopCondPara, iPara,rPara);
    return;
 end
 ds=2;  % for this subroutine, implementation is for a general ds value
@@ -57,12 +48,12 @@ alldsCombSuppC=nchoosek(Xc,ds);  % get all the possible combinations of ds varia
     while stop==0
         numOfIter=numOfIter+1;
         % minimize the gain by dropping ds variable
-        [fXminusds,~,J]=leastSigniX(fX,X,k,ds,ndsCombSupp,alldsCombSupp, A,d,c,lb,ub,diagInv, iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
+        [fXminusds,~,J]=leastSigniX(fX,X,k,ds,ndsCombSupp,alldsCombSupp, A,d,c,diagInv, iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
         % istar are the indices to drop,  fXminusi=f(X - istar)
 
         % maximize the reduction by adding ds variable to Xminusi
         Xminusds=setdiff(X,J);
-        [~,fXplusj,~,Q]=mostSigniXc(fXminusds,Xminusds,k-ds,ds,ndsCombSuppC,alldsCombSuppC, A,d,c,lb,ub,diagInv,  iPara,rPara,whichalgo,isSoftStop, isTF,targetfbest);
+        [~,fXplusj,~,Q]=mostSigniXc(fXminusds,Xminusds,k-ds,ds,ndsCombSuppC,alldsCombSuppC, A,d,c,diagInv,  iPara,rPara,whichalgo,isSoftStop, isTF,targetfbest);
         % jstar index to add, fXplusj=f(X + jstar)
 
         % Swap if possible
@@ -98,30 +89,12 @@ alldsCombSuppC=nchoosek(Xc,ds);  % get all the possible combinations of ds varia
     Sstruct.Q=Q(:, (k-Sstruct.nNonZeroEig+1):end );    % find Q matrix in the reduced space
     Sstruct.D=diagD( (k-Sstruct.nNonZeroEig+1):end );  % find diagD in the reduced space
     Sstruct.diagInv=diagInv(sortX);
-    [~,x(sortX),fx]=quad_min_algo_pool(k,A(sortX,sortX),d(sortX),c,lb(sortX),ub(sortX),xRelaxedOpt(sortX),Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
+    [~,x(sortX),fx]=quad_min_algo_pool(k,A(sortX,sortX),d(sortX),c,[],[],xRelaxedOpt(sortX),Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
 
 end %==========================================================================================================================================================================
 
-%% mostSigniX
-function [fstar,istar]=mostSigniX(fX,X,p,ki, A,d,c,lb,ub,  iPara,rPara,IotherPara)
-% find the most significant feature w.r.t. the set X
-% i.e. find the feature x* such that S(x*)= max (f(X-xj) - f(X) )  for xj in X
-
-    pS=-inf; 
-    for i=1:ki
-       Xmin1=setdiff(X,X(i)); % delete one feature from X at a time;
-       idx_kimin1=false(1,p);idx_kimin1(Xmin1)=1; % flag of 0 and 1 indicating reduce dim
-       [~,~,fXmin1]=quad_min_algo_pool(ki-1,A(idx_kimin1,idx_kimin1),d(idx_kimin1),c,lb(idx_kimin1),ub(idx_kimin1),zeros(ki-1,1),iPara,rPara,IotherPara(23),1,0,[]);
-       S=fXmin1-fX;
-       if pS<S
-          pS=S;istar=X(i); fstar=fXmin1; 
-       end
-    end
-
-end
-
 %% mostSigniXc
-function [xout,fstar,qstar,Qsupp]=mostSigniXc(fX,X,ki,ds,ndsCombSuppC,alldsCombSuppC, A,d,c,lb,ub,diagInv,  iPara,rPara,whichalgo,isSoftStop, isTF,targetfbest)
+function [xout,fstar,qstar,Qsupp]=mostSigniXc(fX,X,ki,ds,ndsCombSuppC,alldsCombSuppC, A,d,c,diagInv,  iPara,rPara,whichalgo,isSoftStop, isTF,targetfbest)
 % card(X)=ki, 
 % find the most significant feature w.r.t the set X complement
 % i.e. find the feature x* such that S(x*)= max (f(X) - f(X + xj) )  for xj in Xc
@@ -137,17 +110,17 @@ function [xout,fstar,qstar,Qsupp]=mostSigniXc(fX,X,ki,ds,ndsCombSuppC,alldsCombS
        Sstruct.D=diagD( (ki+ds-Sstruct.nNonZeroEig+1):end );  % find diagD in the reduced space
        Sstruct.diagInv=diagInv(Xplusds);
 
-       [~,xopt,fXplusds]=quad_min_algo_pool(ki+ds,A(Xplusds,Xplusds),d(Xplusds),c,lb(Xplusds),ub(Xplusds),x0,Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
+       [~,xopt,fXplusds]=quad_min_algo_pool(ki+ds,A(Xplusds,Xplusds),d(Xplusds),c,[],[],x0,Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
        S=fX-fXplusds;
        if pS<S
           pS=S; Qsupp=alldsCombSuppC(i,:); qstar=i; fstar=fXplusds; xout=xopt; 
        end
     end
 
-end
+end % end mostSigniXc===================================================================
 
 %% leastSigniX
-function [fstar,jstar,J]=leastSigniX(fX,X,ki,ds,ndsCombSupp,alldsCombSupp, A,d,c,lb,ub,diagInv,  iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest) 
+function [fstar,jstar,J]=leastSigniX(fX,X,ki,ds,ndsCombSupp,alldsCombSupp, A,d,c,diagInv,  iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest) 
 % find the two least significant features w.r.t. the set X
 % i.e. find the feature x* such that S(J)= min ( f(X-J)-f(X) ) for xj in X
     
@@ -165,33 +138,15 @@ function [fstar,jstar,J]=leastSigniX(fX,X,ki,ds,ndsCombSupp,alldsCombSupp, A,d,c
        Sstruct.Q=Q(:, (ki-ds-Sstruct.nNonZeroEig+1):end );    % find Q matrix in the reduced space
        Sstruct.D=diagD( (ki-ds-Sstruct.nNonZeroEig+1):end );  % find diagD in the reduced space
        Sstruct.diagInv=diagInv(Xminds);
-       [~,~,fXminds]=quad_min_algo_pool(ki-ds,A(Xminds,Xminds),d(Xminds),c,lb(Xminds),ub(Xminds),x0,Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
+       [~,~,fXminds]=quad_min_algo_pool(ki-ds,A(Xminds,Xminds),d(Xminds),c,[],[],x0,Sstruct,iPara,rPara,whichalgo,isSoftStop,isTF,targetfbest);
        S=fXminds-fX;
        if S<pS
           pS=S;J=alldsCombSupp(i,:);jstar=i; fstar=fXminds; 
        end
     end
 
-end
+end % end leastSigniX=======================================================================================
 
-%% leastSigniXc
-function [fstar,istar]=leastSigniXc(fX,X,p,ki, A,d,c,lb,ub,  iPara,rPara,IotherPara)
-% find the least significant feature in X complement
-% i.e. the feature x* such that S(x*)= min ( f(X)-f(X+xj) ) for xj in Xc
-
-    pS=inf; 
-    Xc=setdiff(1:p,X); 
-    for i=1:(p-ki)
-       Xplus1=union(X,Xc(i)); % delete one feature from X at a time;
-       idx_kiplus1=false(1,p);idx_kiplus1(Xplus1)=1; % flag of 0 and 1 indicating reduce dim
-       [~,~,fXplus1]=quad_min_algo_pool(ki+1,A(idx_kiplus1,idx_kiplus1),d(idx_kiplus1),c,lb(idx_kiplus1),ub(idx_kiplus1),zeros(ki+1,1),iPara,rPara,IotherPara(23),1,0,[]);
-       S=fX-fXplus1;
-       if S<pS
-          pS=S;istar=Xc(i); fstar=fXplus1; 
-       end
-    end
-
-end
 
 
 
