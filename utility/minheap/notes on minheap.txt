@@ -1,0 +1,5 @@
+minheap properties (each node properties)
+Capacity = no. of nodes on the dynamic array of type uint64 and initial value 4
+Array = a row array of doubles 
+
+value in minheap.m is a node with the attributes that we have defined
