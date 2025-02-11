@@ -26,8 +26,7 @@ function  [header,rParaOut,numOfBoxDel,dataMat,XstarNormSpace,outputPara,...
             textfileIntermOut=fopen( append(level1FolderPath,'\summary_',sprintf('TM%g',tmax),'.txt' ),'a');  % save another text file for intermediate results for stepTm values
             fprintf(textfileIntermOut,'%s \n',datetime('now'));
             [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x_tilde,Xstar,fbest]=setupForIntvalAlgo(nPts,pDim,yArray,xMatrix,trueb,...
-                                                   A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,choseniPara,rPara,delCondPara,saveIntermOutput,version_flag,xRelaxedOpt,...
-                                                        fxRelaxedOpt,preXstarNormSpace,InpFilCtr,pDimCtr,egCtr,setCtr,paraCtr,textfileIntermOut,toDebug,level8dirpath);
+                                                   A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,choseniPara,rPara,version_flag,xRelaxedOpt,fxRelaxedOpt,textfileIntermOut,toDebug);
             fprintf(textfileIntermOut,'%s \n',datetime('now'));
             fclose(textfileIntermOut); 
             dataMat=[fbest;outputPara(7);rParaOut.cpuIntvalAlgo/60;outputPara(5);outputPara(15);Xstar];  % for table format
@@ -56,8 +55,7 @@ function  [header,rParaOut,numOfBoxDel,dataMat,XstarNormSpace,outputPara,...
 
             textfileName=struct('interm_out',textfileIntermOut,'box_flag',textfileBoxFlag,'lbFandfbest',textfilelbFandfbest);
                [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x_tilde,Xstar,fbest]=setupForIntvalAlgo(nPts,pDim,yArray,xMatrix,trueb,...
-                                                   A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,choseniPara,rPara,delCondPara,saveIntermOutput,version_flag,xRelaxedOpt,...
-                                                        fxRelaxedOpt,preXstarNormSpace,InpFilCtr,pDimCtr,egCtr,setCtr,paraCtr,textfileName,toDebug,level8dirpath); 
+                                                   A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,choseniPara,rPara,version_flag,xRelaxedOpt,fxRelaxedOpt,textfileName,toDebug); 
             if toDebug==2                                     
                 fprintf(textfileIntermOut,'%s \n',datetime('now'));
                 fclose(textfileIntermOut);fclose(textfileBoxFlag);

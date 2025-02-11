@@ -1,6 +1,6 @@
 function [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x_tilde,Xstar,fbest]=setupForIntvalAlgo(nPts,pDim,yArray,xMatrix,trueb,...
-                                                         A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,iPara,rPara,delCondPara,saveIntermOutput,version_flag,xRelaxedOpt,...
-                                                               fxRelaxedOpt,preXstarNormSpace,InpFilCtr,pDimCtr,egCtr,setCtr,paraCtr,textfileName,toDebug,level8dirpath)
+                                                         A,b,c,tmax,targetfbest,IstopCondPara,IotherPara,iPara,rPara,version_flag,xRelaxedOpt,...
+                                                               fxRelaxedOpt,textfileName,toDebug)
     %global diagInv   4Sep23
     % 07/25/23 to be used in convexQuadByCoordDescentBox3.m 
         
@@ -78,26 +78,54 @@ function [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x
     
     
     % main algorithms
-    if version_flag==71 % IBB
-        Xbox=ones(pDim,1,'uint8');  % box represented as integer array
-        timeGivenalgo=cputime;
-        [numOfBoxDel,outputPara,x_tilde,fx_tilde,y_tilde,Y_tilde,Xstar,fbest]=ibb(nPts,pDim,yArray,xMatrix,trueb,targetfbest,Anorm,bnorm,cnorm,Xbox,lowbnd,upbnd,diagInv,tmax,normxRelaxedOpt,preXstarNormSpace,...
-        normFactor,IstopCondPara,IotherPara,iPara,rPara,delCondPara,saveIntermOutput,numOfBoxDel,InpFilCtr,pDimCtr,egCtr,setCtr,paraCtr,textfileName,toDebug,level8dirpath);
-        cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec
-        volDeleted=nan;
-        if toDebug==1,fprintf('cputime for IBB = %1.8f min. \n',cpuIntvalAlgo/60);end
+    if version_flag==9
+       outputPara=nan(17,1);
+       timeGivenalgo=cputime;
+       [rParaAG9,~,x_tilde,fx_tilde,Xstar,fbest]=AG9(pDim,lowbnd,upbnd,Anorm,bnorm,cnorm,tmax,normxRelaxedOpt,[],diagInv,targetfbest, IotherPara,IstopCondPara,iPara,rPara,textfileName,toDebug);
+       cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec
+       outputPara(16)=rParaAG9.necConMaxVioRefQM; outputPara(5)=rParaAG9.numOfIter;outputPara(7)=rParaAG9.stopflag;
 
-    elseif version_flag==23 % BB
-        outputPara=nan(17,1);numOfBoxDel=nan(length(numOfBoxDel),1);volDeleted=nan;
+    elseif version_flag==92  % AG 92
+%         preXstarNormSpace=[];
+        outputPara=nan(17,1);
         timeGivenalgo=cputime;
-        [rParaOutIBBplus,Xstar,fbest,~]=bb(pDim,tmax,Anorm,bnorm,cnorm,lowbnd,upbnd,diagInv,iPara,rPara,IotherPara,textfileName,IstopCondPara,targetfbest,toDebug);
+        [rParaAG92,~,x_tilde,fx_tilde,Xstar,fbest]=AG92(pDim,lowbnd,upbnd,Anorm,bnorm,cnorm,tmax,normxRelaxedOpt,[], diagInv, targetfbest, IotherPara,IstopCondPara,iPara,rPara,textfileName,toDebug);
         cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec
-        outputPara(17)=rParaOutIBBplus.necConMaxVioInfQM;outputPara(7)=rParaOutIBBplus.stopCriteriaFlag;outputPara(15)=rParaOutIBBplus.nfuneval;
-        numOfBoxDel(1)=rParaOutIBBplus.nDC1; 
-        x_tilde=nan(pDim,1);fx_tilde=NaN; % dummy output 
-        if toDebug==1,fprintf('cputime for BB = %1.8f min. \n',cpuIntvalAlgo/60);end
+        outputPara(16)=rParaAG92.necConMaxVioRefQM; outputPara(5)=rParaAG92.numOfIter;outputPara(7)=rParaAG92.stopflag; 
 
-   elseif version_flag==34  % MIO
+    elseif version_flag==93 % AG sffs
+        outputPara=nan(17,1);
+        timeGivenalgo=cputime;
+        [rParaOut93,fbest,Xstar,~,~]=sffs(pDim,tmax,Anorm,bnorm,cnorm,lowbnd,upbnd,diagInv,iPara,rPara,IotherPara,IstopCondPara,targetfbest); % the given box is just a dummy input
+        %** the Xstar,fbest above are already in the original space as we used original xMatrix,yArray, A,b and c 
+        cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec
+        outputPara(7)=rParaOut93.stopflag; outputPara(5)=rParaOut93.numOfIter; 
+
+    elseif version_flag==94 % 4March24, Genetic algorithm to solve BSS
+        outputPara=nan(17,1);
+%         timeGivenalgo=cputime;
+        [rParaAG94,~,Xstar,fbest]=geneticAlgBSS(pDim,lowbnd,upbnd,Anorm,bnorm,cnorm,tmax,normxRelaxedOpt,[],diagInv,targetfbest, IotherPara,IstopCondPara,iPara,rPara,textfileName,toDebug);
+%         cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec
+        cpuIntvalAlgo=rParaAG94.cpusec;
+        outputPara(16)=rParaAG94.necConMaxVioRefQM; outputPara(5)=rParaAG94.numOfIter;outputPara(7)=rParaAG94.stopflag; %printArray(rParaAG94.fbestList,'%1.6f');
+
+    elseif version_flag==35 % sfs a heuristic to solve the BSS problem
+        outputPara=nan(17,1);
+        timeGivenalgo=cputime;
+        %[outputPara(7),outputPara(17),Xstar,fbest,~]=sfs(nPts,pDim,tmax,xMatrix,yArray,Anorm,bnorm,cnorm,lowbnd,upbnd,diagInv,iPara,rPara,IotherPara(23),IstopCondPara,targetfbest);
+        [outputPara(7),Xstar,fbest,~]=fs1(pDim,tmax,Anorm,bnorm,cnorm,lowbnd,upbnd,diagInv,iPara,rPara,IotherPara,IstopCondPara,targetfbest);
+        cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec 
+
+    elseif version_flag==36 % discrete first order method to solve the BSS
+        stepL=max(eig(Anorm/2)); % step length for projected gradient method
+        outputPara=nan(17,1);
+        %timeGivenalgo=cputime;
+        [rParaOutdfo1,fbest,Xstar]=dfo1wrapper(pDim,nPts,[],[],tmax,Anorm,bnorm,cnorm,lowbnd,upbnd,diagInv,[],normxRelaxedOpt,stepL,iPara,rPara,IotherPara,IstopCondPara); 
+        %cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec
+        cpuIntvalAlgo=rParaOutdfo1.cpusec;
+        outputPara(7)=rParaOutdfo1.stopflag;   %printArray(rParaOutdfo1.fbestList,'%1.6f');   
+
+    elseif version_flag==34  % MIO
         outputPara=nan(17,1); % initialization
         if min(nPts,pDim)<tmax
             Xstar=-ones(pDim,1);fbest=-1;cpuIntvalAlgo=0;fx_tilde=-1;x_tilde=-ones(pDim,1);
@@ -107,11 +135,10 @@ function [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x
            cpuIntvalAlgo=(cputime-timeGivenalgo); % in sec
         end
         numOfBoxDel=nan(length(numOfBoxDel),1);volDeleted=nan; % dummy output
-        if toDebug==1,fprintf('CPU time for MIO = %1.8f min. \n',cpuIntvalAlgo/60);end
+        if toDebug==1,fprintf('CPU time for MIO = %1.8f min. \n',cpuIntvalAlgo/60);end    
 
-    end % if version_flag
-    
-    
+    end
+ 
     % xstar in normed space
     XstarNormSpace=Xstar;
     
@@ -128,8 +155,7 @@ function [XstarNormSpace,xRelaxedOpt2,outputPara,numOfBoxDel,rParaOut,fx_tilde,x
     
     % set output parameters
     rParaOut.normFactor=normFactor;rParaOut.scaleQP=scaleQP;rParaOut.xRelaxOptConstVio=xRelaxOptConstVio;rParaOut.volDeleted=volDeleted;rParaOut.cpuIntvalAlgo=cpuIntvalAlgo;rParaOut.tmax=tmax;rParaOut.Mu=Mu;
-   
-        
+          
 %===========================================================================================================================================================    
 end  % end of the function setupForIntvalAlgo.
 %===========================================================================================================================================================
