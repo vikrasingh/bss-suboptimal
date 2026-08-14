@@ -5,7 +5,7 @@ This package provides the testing and algorithm files to solve the following **B
 where $\beta \in R^p$, $y \in R^n$, $X \in R^{n \times p}$, $`\| \cdot \|_{2}`$ is $`l_{2}`$ norm, $`\|\cdot\|_{0}`$ is a pseudo-norm which counts the no. of non-zero entries of $`\beta`$.\
 The following five suboptimal algorithms have been implemented
 and compared to solve the BSS problem.
-1. Sequential Feature Swapping (SF) 
+1. Sequential Feature Swapping (SFS) 
 2. Forward Selection (FS)
 3. Sequential Floating Feature Selection (SFFS)
 5. Genetic Algorithm (GA)
