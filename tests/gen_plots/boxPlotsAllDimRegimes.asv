@@ -1,0 +1,123 @@
+function boxPlotsAllDimRegimes(fbestDataAllInpFil, upYLimVec, str)
+% subroutine to make boxplot using grouping by small, med, and large dim
+% generate boxplots for relative gap % = 100(f - f*)/f  , where f* is the best solution found and f is the sol. from a given algo.
+
+% indices of each dim. regime for one example
+ind_small = [1:8,  1*24+1:1*24+8 , 2*24+1:2*24+8, 3*24+1:3*24+8];
+ind_med = [9:16,  1*24+9:1*24+16 , 2*24+9:2*24+16, 3*24+9:3*24+16];
+ind_lar = [17:24,  1*24+17:1*24+24 , 2*24+17:2*24+24, 3*24+17:3*24+24];
+
+% indices of each dim. regimes for three examples
+ind_small_3exs=[ind_small, 96+ind_small, 2*96+ind_small];
+ind_med_3exs=[ind_med, 96+ind_med, 2*96+ind_med];
+ind_lar_3exs=[ind_lar, 96+ind_lar, 2*96+ind_lar];
+
+% boxplots of three examples for small dim. regime
+upYLim=upYLimVec{1};
+boxPlotOneDimRegime(fbestDataAllInpFil(ind_small_3exs,:), upYLim);
+saveas(gcf,sprintf('boxPlotRelGapEx123Sma%s',str),'fig');
+saveas(gcf,sprintf('boxPlotRelGapEx123Sma%s',str),'epsc');
+
+% boxplots of three examples for small dim. regime
+upYLim=upYLimVec{2};
+boxPlotOneDimRegime(fbestDataAllInpFil(ind_med_3exs,:), upYLim, sprintf('ex123Med%s',str));
+
+% boxplots of three examples for small dim. regime
+upYLim=upYLimVec{3};
+boxPlotOneDimRegime(fbestDataAllInpFil(ind_lar_3exs,:), upYLim, sprintf('ex123Lar%s',str));
+
+
+
+end %==================================================================
+
+function boxPlotOneDimRegime(fbest, upYLim) %==================================
+
+colcode =[
+          1         0         0        % red
+          0.9294    0.6941    0.1255   % yellow
+          0         0.4471    0.7412   % blue
+          0.3922    0.8314    0.0745   % green
+          0.7176    0.2745    1.0000   % purple             
+          0         1         1        % cyan
+          1.0000    0.4118    0.1608   % orange
+          1.0000    0.0745    0.6510   % pink
+          0.5020    0.5020    0.5020   % gray
+          0.30      0.75      0.93     % sky blue
+          0.47      0.67      0.19     % olive
+          0.64      0.08      0.18     % dark red
+          0         0         0.5      % navy blue
+          ];
+      
+ nGroups=3;  % make three groups for small, med, and large dim. examples
+[m,n]=size(fbest);
+relgapdata=relgap(fbest);
+    
+
+data = relgapdata(:);          % Vectorized data
+dimGroup =zeros(m,n);          % Dimension index (rows)
+ind_for_groups={1:32, 33:64, 65:96};
+for i=1:nGroups
+   dimGroup(ind_for_groups{i},:)=i;   
+end
+dimGroup=dimGroup(:); % Vectorize data
+
+methodGroup = repmat(1:n, m, 1);
+methodGroup = methodGroup(:);        % Method index (columns)
+
+figure
+boxplothand=boxplot(data, {dimGroup, methodGroup},'FactorSeparator',1,'Widths', 0.5,'Symbol', '+k')
+ylabel('Relative Gap $\%$','FontUnits','points','FontSize',22,'FontName','Times','FontWeight','normal','interpreter','latex');
+axhand=gca;
+set(axhand,'LineWidth',1.5,'YGrid','on','FontUnits','points','FontSize',13,'FontName','Times','FontWeight','normal');
+yRangeSubplot1=axhand.YLim
+if isempty(upYLim)
+   upYLim=yRangeSubplot1(2)
+end
+yRangeSubplot1=[-0.05*upYLim, upYLim];
+set(axhand,'YLim',yRangeSubplot1);
+set(boxplothand,'LineWidth',1.2)
+%===== to set colors for each boxplot             
+colors=repmat(colcode(1:n,:), nGroups,1);
+h = findobj(gca, 'Tag', 'Box');
+for i = 1:length(h)
+    methodIdx = mod(length(h)-i, m) + 1;
+    patch(get(h(i),'XData'), get(h(i),'YData'), ...
+          colors(methodIdx,:), 'FaceAlpha', 0.95);  % FaceAlpha values is the darkness of the box colors must be bw [0,1], 1 being the darkest
+end
+
+%====== to create x tick 1 to 4 for each grouped boxplots
+boxes = findobj(gca, 'Tag', 'Box');
+
+% Box objects are returned in reverse order
+boxes = flipud(boxes);
+
+% Get center x-position of each box
+numBoxes = numel(boxes);
+xCenters = zeros(numBoxes,1);
+
+for i = 1:numBoxes
+    xCenters(i) = mean(boxes(i).XData);
+end
+methodLabels = repmat(1:n, 1, m);   % [1 2 3 4 1 2 3 4 ...]
+methodLabels = string(methodLabels);
+set(gca,'XTick', xCenters,'XTickLabel', methodLabels)
+
+%===== to create x labels for each group 
+groupCenters = reshape(xCenters,n, nGroups);
+groupCenters = mean(groupCenters, 1);
+groupNames = {'Example 1','Example 2','Example 3'};
+ylim, min(ylim), range(ylim)
+yText = max(ylim) + 0.005 * range(ylim)
+hold on
+for i = 1:nGroups
+    text(groupCenters(i), yText, groupNames{i}, ...
+        'HorizontalAlignment','center', ...
+        'VerticalAlignment','bottom', ...
+        'FontWeight','normal','FontUnits','points','FontSize',15,'FontName','Times','interpreter','latex')
+end
+
+hold off
+
+end % boxPlotOneDimRegime =======================================
+
+
