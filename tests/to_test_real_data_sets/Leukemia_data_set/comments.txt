@@ -1,0 +1,14 @@
+Leukemia data set. Downloaded from the supplementary material included in the reference
+Frideman Hastie Tibshirani 2010 Regularization Paths for Generalized Linear Models via Coordinate Descent.
+https://www.jstatsoft.org/article/view/v033i01
+======================================================
+pDim=3571
+nPts=72
+
+data in the LeukemiaData.xlsx 
+xMatrix: mean and variance of every column is 0 and 1 resp.
+yArray: is a binary vector
+
+The columns of xMatrix will be normalized within the code to have 2-norm 1;
+yArray is normalized to have mean 0 ,2-norm 1
+
