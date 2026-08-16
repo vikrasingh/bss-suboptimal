@@ -1,0 +1,236 @@
+
+function  [fbest_all_inp_files,cpu_all_inp_files,niter_all_inp_files,stopflag_all_inp_files]=get_ex_data(input_files,para_struct)
+% level 1 file, takes the user defined parameters
+
+mainfile=para_struct.mainfile;
+to_debug=para_struct.to_debug;
+
+diary('diary.txt');         
+tod_date=datestr(now,'yymmmdd'); % todate string to be used in the captionformatOut='ddmmmyy';toDate=datestr(now,formatOut); % todate string to be used in the caption
+%% Define the Level 1 output directory
+start_clock=tic;
+datetime1=datetime('now');
+cputime1=cputime;
+num_inp_files=size(input_files,1); % no. of input files to run 
+% to save fbest, cpu, Fcalls data for all the input files combined
+fbest_all_inp_files=cell(1,num_inp_files);cpu_all_inp_files=cell(1,num_inp_files);niter_all_inp_files=cell(1,num_inp_files);stopflag_all_inp_files=cell(1,num_inp_files);
+num_sets_all_in_files=zeros(1,num_inp_files);
+
+% 1 :==============================================================================================================================================================
+for inp_file_ctr=1:num_inp_files % go over each pair of example and algorithm input file
+%=================================================================================================================================================================    
+        
+        level8fileid=fopen(sprintf('timestampL8Ctr%d.txt',inp_file_ctr),'a+');intimelevel8=datetime('now');incputimelevel8=cputime; % timestamp for the starting time
+        fprintf(level8fileid,sprintf('Level 8, Input file pair %d \n',inp_file_ctr));fprintf(level8fileid,'start time=%s \n',intimelevel8);fclose(level8fileid);
+
+        maxVioRefQMoverpDim=-inf; % initialize max vio. of the necess. cond for quad. min sol. during refinement for all pDim values used
+        maxVioInfQMoverpDim=-inf; % initialize max vio. of the necess. cond for quad. min sol. during Inf F for all pDim values used
+        
+        %% Define example and algorithm input file
+
+        % Algorithm input file 
+        eval( append('[numOfSets,chooseParaToRun,IotherPara,IstopCondPara,delCondPara,QuadMinFunPara,rPara,iPara,intermFbestIter,intermMaxIter,intermCPU,algoParafile]=',...
+             input_files{inp_file_ctr,1},';') )
+        % Example example input file
+        eval( append('[npDim,pDim_values,nPts_values,nEgs_eachpDim,tmaxVal_eachpDim,nDcol_values,infoCol_values,targetfbest_eachpDim,giveCorrParaManually_option,',...
+              'corrflag_option,rho_values,snr_values,n_non_zeros_trueb_values,trueb_type_option,chooseEgsToRun_eachpDim,egParafile,toUseRealDataFile]=',...
+              input_files{inp_file_ctr,2},';') )
+        
+        num_sets_all_in_files(inp_file_ctr)=numOfSets;
+        %% Create the output directory
+        level8dirpath=pwd;
+        out_dir_name=append( input_files{inp_file_ctr,2},'_',tod_date);
+        if isfolder( out_dir_name )==false
+            mkdir( out_dir_name );cd( out_dir_name );  % create the output_date folder and then change the current folder to that
+        else % if folder aleardy exists, do not overwrite, make a new folder with output(num) data format  
+            num=0;
+            while isfolder( out_dir_name )==true
+               num=num+1;
+               out_dir_name=append( input_files{inp_file_ctr,1},'_',input_files{inp_file_ctr,2},'_',tod_date,sprintf('(%d)',num) ); 
+            end
+            mkdir( out_dir_name );cd( out_dir_name ); % create the output_date folder and then change the current folder to that
+        end
+
+        cpu_each_inp_file=cell(1,npDim); % variable to gather data for perprof for all tmax, all pDim together
+        fbest_each_inp_file=cell(1,npDim); % variable to gather data for perprof for all tmax, all pDim together
+        niter_each_inp_file=cell(1,npDim); % variable to gather Fcalls as a row for all tmax all pDim
+        stop_flag_each_inp_file=cell(1,npDim); % variable to gather stopflags as a row for all tmax all pDim 
+        %% Loop to go over different p values
+        %========================================================================================================================================================================
+        for p_ctr=1:npDim   % outermost loop to run multiple pDim runs for the parameters defined above
+        %========================================================================================================================================================================    
+                
+                p_dim=pDim_values(p_ctr);    % give the dimension of the predictors
+                n_pts=nPts_values(p_ctr);    %10*(pDim+nDcol)   % define the nPts which is the no. of observations
+                level7dirpath=pwd;
+                level7fileid=fopen(sprintf('timestampL7pDim%d.txt',p_dim),'a+');
+                intimelevel7=datetime('now');incputimelevel7=cputime; % timestamp for the starting time
+                fprintf(level7fileid,'Level 7 \n');fprintf(level7fileid,'start time=%s \n',intimelevel7);fclose(level7fileid);
+
+                k_values=tmaxVal_eachpDim(p_ctr,:);  % define tmaxValues in the decreasing order. Length of lambdaValues and tmaxValues should be the same.
+                k_values=flip(k_values(k_values~=0)); % remove the 0 flags in the end of the row
+                
+                num_instances=1;    %$1 number of instances to run 
+                seed_for_num_instances=1;   % change 0 to other seed if you want to re-run a particular instance, otherwise no need to alter
+                seed_for_set_of_exs=[0];  % change 0 to other seed if you want to re-run a PARTICULAR set of examples, otherwise no need to alter.
+                seed_for_ex=0 ; % give seed/seeds of an example or a subset of examples we want to re-run from a previous run , else no need to alter.
+                
+                seed_for_trueb=[0]; % seed to be used when we are generating trueb randomly, otherwise will not be used
+                 
+                nDcol=nDcol_values(p_ctr);     % give the no. of dependent columns we want to add to xMatrix
+                infoCol=infoCol_values(p_ctr);  % how many informative/correlated columns we want to add to the xMatrix. Only makes the first infoCol no. of cols of xMatrix correlated
+        
+                % corrflag and rho only get used when generating covariance matrix sigma MANUALLY 
+                corrflag=corrflag_option(p_ctr);    % 1 means constant correlation, 2 means exponential correlation, 3 means take the user defined matrix in the corrMatrix_MeanVecPool 
+                rho=rho_values(p_ctr);    % when corrflag=1, sigma(i,j)=rho when i/=j and sigma(i,i)=1
+                          % when corrflag=2, sigma(i,j)=rho^(|i-j|) and sigma(i,i)=1
+                          
+                 
+                % If infoCol is 0 then degOfCorr parameter will not be used. if giveCorrMatManually=1, this parameter will not be used.
+                % D_t defines a matrix of order pDim by nDcol with independent columns with integer entries in the range [-2 2], check line 286
+                snr=snr_values(p_ctr);   % signal to noise ratio, will be used to calculate the sd for the noise epsilon
+                
+                check_nDcol=0;  % if nDcol is non-zero as defined above then check_nDcol is taken to be 1 internally
+                %  however, if nDcol=0 and check_nDcol=1 then find the Dependent col columns of xMatrix and use dimension reduction
+                numOfEgs=nEgs_eachpDim(p_ctr);  % define how many examples we want to run, should be same as the length of chooseEgsToRun array below
+                n_non_zeros_trueb=n_non_zeros_trueb_values(p_ctr);  % define the number of 0s in randomly generated trueb
+                
+                
+                trueb_type=trueb_type_option(p_ctr);           % different options for defining trueb
+                
+                if trueb_type==-1 % generate the trueb values randomly
+                    chooseEgsToRun=(1:numOfEgs);    % If randomly generating trueb keep chooseEgsToRun=[1 2 ... numOfEgs] as a dummy variable
+                    [seedForTruebAllEgs,giveValuesOf_b]=randomTrueb(p_dim,numOfEgs,p_dim-n_non_zeros_trueb,seed_for_trueb,seed_for_num_instances);
+                    % seedForTheEg will generate another seed of arrays to be used to create random trueb for given no. of examples
+                    % to regenerate trueb for an example, provide 
+        
+                elseif trueb_type==0  % read trueb values from the truebPool.m
+                    seedForTruebAllEgs=zeros(numOfEgs,1);  % dummy variable
+                    % define the values of true parameter b for all examples, each column represent a value of b for each example.
+                    chooseEgsToRun=chooseEgsToRun_eachpDim(p_ctr,:);    % give which trueb values we want to test from the array below. If randomly generating trueb keep chooseEgsToRun=[1 2 ... numOfEgs]
+                    chooseEgsToRun=chooseEgsToRun(chooseEgsToRun~=0);    % remove the dummy 0 entries in the end of the row
+                    [truebPoolFilePath,giveValuesOf_b]=truebPool(p_dim);
+                    % if using trueb values from the pool, save a copy of truebPool
+                    getFileName=strsplit( truebPoolFilePath,filesep  );backupFile=fullfile( pwd,append(getFileName{length(getFileName)},'_copy.m') );copyfile(strcat( truebPoolFilePath,'.m' ),backupFile);
+        
+                elseif ismember(trueb_type,(1:5))  % define trueb using different options
+                    chooseEgsToRun=(1:numOfEgs);   % dummy variable
+                    seedForTruebAllEgs=zeros(numOfEgs,1);  % dummy variable
+                    giveValuesOf_b=zeros(p_dim,numOfEgs);
+                    for i=1:numOfEgs
+                        giveValuesOf_b(:,i)=trueb_type_pool(p_dim,numOfEgs,n_non_zeros_trueb,trueb_type);
+                    end
+        
+                end
+                
+                
+                [corrMatrix_MeanVecPoolFilePath,mu,sigma]=corrMatrix_MeanVecPool(infoCol,rho,corrflag);  % defined at the end of this subroutine, set the covariance matrix in that subroutine accordingly
+                % save a copy of the file 
+                getFileName=strsplit( corrMatrix_MeanVecPoolFilePath,filesep  );backupFile=fullfile( pwd,append(getFileName{length(getFileName)},'_copy.m') );copyfile(strcat( corrMatrix_MeanVecPoolFilePath,'.m' ),backupFile);
+        
+                
+                                
+                                
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% End of user defined input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                saveIntermOutput=struct('FbestIter',intermFbestIter,'MaxIter',intermMaxIter,'CPU',intermCPU);
+                inputFileNameLocation.mainfile=mainfile;
+                inputFileNameLocation.egParafile=egParafile;
+                inputFileNameLocation.algoParafile=algoParafile;
+
+                [out]=gen_model_para(p_dim,n_pts,infoCol,nDcol,k_values,num_instances,numOfSets,numOfEgs,seed_for_num_instances,seed_for_set_of_exs,...
+                            seed_for_ex,chooseEgsToRun,snr,mu,sigma, giveValuesOf_b,seedForTruebAllEgs,check_nDcol,chooseParaToRun,IotherPara,IstopCondPara, ...
+                            QuadMinFunPara,rPara,iPara,inp_file_ctr,p_ctr,saveIntermOutput,inputFileNameLocation,toUseRealDataFile,to_debug,...
+                            tod_date,level7dirpath,level8dirpath);
+                
+                    
+                % save data for all pDimValues all egs for performance profile plots
+                cpu_each_inp_file{p_ctr}=out.cpuDataForPlot;fbest_each_inp_file{p_ctr}=out.fbestDataForPlot;niter_each_inp_file{p_ctr}=out.niterDataForPlot;stop_flag_each_inp_file{p_ctr}=out.stopflagData;
+                
+                if maxVioRefQMoverpDim<out.maxVioRefQMoverSet,maxVioRefQMoverpDim=out.maxVioRefQMoverSet; end
+                if maxVioInfQMoverpDim<out.maxVioInfQMoverSet,maxVioInfQMoverpDim=out.maxVioInfQMoverSet; end
+                
+                level7fileid=fopen(sprintf('timestampL7pDim%d.txt',p_dim),'a+');
+                outtimelevel7=datetime('now');outcputimelevel7=(cputime-incputimelevel7)/60;fprintf(level7fileid,'start time=%s \n',outtimelevel7);fprintf(level7fileid,'Wall clock time taken for the run = %1.8f min \n',minutes(outtimelevel7-intimelevel7)); % timestamp level0 at the end
+                fprintf(level7fileid,'cputime to run pDim %d from the input file pair %d is %1.8f min\n',p_ctr,inp_file_ctr,outcputimelevel7);fprintf(level7fileid,'maxVioRefQM=%1.8f and maxVioInfQM=%1.8f for pDim=%d \n', out.maxVioRefQMoverSet,out.maxVioInfQMoverSet,pDim_values(p_ctr));
+                fclose(level7fileid);
+
+                %save min(fbest) over all sets for given tmax values, to be used in example input files to provide targetfbest
+                targetfbestfileid=fopen('targetfbest.txt','a+');
+                if p_ctr==1,fprintf(targetfbestfileid,'targetfbest_eachpDim=[');end
+                fprintf(targetfbestfileid, append(repmat('%1.8f ',1,length(k_values) ),'\n') ,out.bestfbestoverSet);
+                if p_ctr==npDim,fprintf(targetfbestfileid,']; \n');end
+                fclose(targetfbestfileid);
+        %======================================================================================================================================================================
+        end % for pDimCtr=1:npDim
+        %======================================================================================================================================================================
+    
+       
+        cd(level8dirpath);  % change to the level 8 folder
+        
+        cpu_each_inp_file=cat(1,cpu_each_inp_file{:});fbest_each_inp_file=cat(1,fbest_each_inp_file{:});niter_each_inp_file=cat(1,niter_each_inp_file{:});stop_flag_each_inp_file=cat(1,stop_flag_each_inp_file{:});  % concatenate the data from all the cell arrays row wise
+        %==================================================================================================================
+
+        save(sprintf('dataPerProfInpFil%d.mat',inp_file_ctr),'cpu_each_inp_file','fbest_each_inp_file','niter_each_inp_file','stop_flag_each_inp_file');
+        %===================================================================================================================
+
+        level8fileid=fopen(sprintf('timestampL8Ctr%d.txt',inp_file_ctr),'a+');
+        outtimelevel8=datetime('now');outcputimelevel8=(cputime-incputimelevel8)/60;fprintf(level8fileid,'End time=%s \n',outtimelevel8);fprintf(level8fileid,'Wall clock time taken for the run = %1.8f min \n',minutes(outtimelevel8-intimelevel8)); % timestamp level8 at the end
+        fprintf(level8fileid,'cputime to run input file pair %d is %1.8f min \n',inp_file_ctr,outcputimelevel8);fprintf(level8fileid,'maxVioRefQM=%1.8f and maxVioInfQM=%1.8f for Input file pair=%d for all pDimvalues. \n', maxVioRefQMoverpDim,maxVioInfQMoverpDim,inp_file_ctr);
+        fclose(level8fileid);
+
+        % update fbest,cpu and Fcalls for all input files
+        fbest_all_inp_files{inp_file_ctr}=fbest_each_inp_file;cpu_all_inp_files{inp_file_ctr}=cpu_each_inp_file;niter_all_inp_files{inp_file_ctr}=niter_each_inp_file;stopflag_all_inp_files{inp_file_ctr}=stop_flag_each_inp_file;
+        
+%end 1:===================================================================================================================================================
+end  % example input file loop
+%==================================================================================================================================================
+
+
+maxNumOfSets=max(num_sets_all_in_files);
+% save the fbest,cpu and Fcalls for all input file pairs in matlab data files
+if isequal(num_sets_all_in_files,num_sets_all_in_files(1)*ones(1,num_inp_files))  % if all the input files have the same no. of sets
+    fbest_all_inp_files=cat(1,fbest_all_inp_files{:});cpu_all_inp_files=cat(1,cpu_all_inp_files{:});niter_all_inp_files=cat(1,niter_all_inp_files{:});stopflag_all_inp_files=cat(1,stopflag_all_inp_files{:}); 
+   
+else % if no. of sets are different for all input files
+    
+    collectfbest=cell(1,num_inp_files);collectcpu=cell(1,num_inp_files);collect_niter=cell(1,num_inp_files);collectstopflag=cell(1,num_inp_files);
+    for iInpFil=1:num_inp_files
+       [nproblems,~]=size(fbest_all_inp_files{iInpFil});
+       rightfill=nan(nproblems,maxNumOfSets-num_sets_all_in_files(iInpFil));
+       collectfbest{iInpFil}=cat(2,fbest_all_inp_files{iInpFil},rightfill);
+       collectcpu{iInpFil}=cat(2,cpu_all_inp_files{iInpFil},rightfill);
+       collect_niter{iInpFil}=cat(2,niter_all_inp_files{iInpFil},rightfill);
+       collectstopflag{iInpFil}=cat(2,stopflag_all_inp_files{iInpFil},rightfill);
+    end
+    fbest_all_inp_files=cat(1,collectfbest{:});cpu_all_inp_files=cat(1,collectcpu{:});niter_all_inp_files=cat(1,collect_niter{:});stopflag_all_inp_files=cat(1,collectstopflag{:}); 
+  
+end
+save(sprintf('dataForAllInpFiles%s.mat',para_struct.id),'fbest_all_inp_files','cpu_all_inp_files','niter_all_inp_files','stopflag_all_inp_files');
+
+totalTimeAllInputFilePairs=(toc(start_clock))/60;
+fprintf('Wall clock time for all input file pairs = %1.6f min \n',totalTimeAllInputFilePairs);
+clockTextFileName=sprintf('clocktime_%s.txt',tod_date);
+if isfile( clockTextFileName )==true
+    num=1;
+    clockTextFileName=sprintf('clocktime_%s(%d).txt',tod_date,num);
+    while isfolder( clockTextFileName )==true
+       num=num+1;
+    end
+end
+
+totaltimefileid=fopen( clockTextFileName,'w+' );  % to write the total time for the run in a text file
+fprintf(totaltimefileid,'total wallclocktime to run all the input file pairs = %1.8f min. \n',totalTimeAllInputFilePairs);
+datetime2=datetime('now');
+fprintf(totaltimefileid,'start time=%s \n', datetime1);
+fprintf(totaltimefileid,'end time=%s \n', datetime2);
+fprintf(totaltimefileid,'Time increment = %1.8f min \n', minutes(datetime2-datetime1));
+totalTime=(cputime- cputime1)/60;
+fprintf(totaltimefileid,'total cputime = %1.8f min. \n',totalTime);
+fclose(totaltimefileid);   
+
+diary off
+
+end % end of runMultiInputFilePair
+
+
+
