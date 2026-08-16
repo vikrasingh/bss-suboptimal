@@ -128,7 +128,7 @@ function  [epsMax,x,fval]=quad_min_algo_pool(n,A,b,c,lb,ub,x0,S,iPara,rPara,whic
     elseif which_algo==19
         [x,fval,~,~]=MiniQuadFunUnconstAdapt4(n,A,b,c,x0,iPara,rPara,isSoftStop);
 %         [~,epsMax]=necessaryCondForUnBoxQuadMinFull(n,rPara(3),x,A*x+b);
-    elseif which_algo==20
+    elseif which_algo==20 
         [~,x,fval,~,~]=convexQuadByConjugateGradientUnbox2(n,A,b,S,x0,rPara(2),rPara(7),rPara(3),iPara(2),isSoftStop,isTF,targetfbest);
         fval=fval+c;
 %  used till 23July23        [~,x,fval,~,~]=refineByConjugateGradientUnbox2(n,A,b,c,x0,rPara(2),rPara(7),rPara(3),iPara(2),isSoftStop,isTF,targetfbest);
