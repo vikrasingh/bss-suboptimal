@@ -23,9 +23,6 @@ for inp_file_ctr=1:num_inp_files % go over each pair of example and algorithm in
         level8fileid=fopen(sprintf('timestampL8Ctr%d.txt',inp_file_ctr),'a+');intimelevel8=datetime('now');incputimelevel8=cputime; % timestamp for the starting time
         fprintf(level8fileid,sprintf('Level 8, Input file pair %d \n',inp_file_ctr));fprintf(level8fileid,'start time=%s \n',intimelevel8);fclose(level8fileid);
 
-        maxVioRefQMoverpDim=-inf; % initialize max vio. of the necess. cond for quad. min sol. during refinement for all pDim values used
-        maxVioInfQMoverpDim=-inf; % initialize max vio. of the necess. cond for quad. min sol. during Inf F for all pDim values used
-        
         %% Define example and algorithm input file
 
         % Algorithm input file 
@@ -77,7 +74,6 @@ for inp_file_ctr=1:num_inp_files % go over each pair of example and algorithm in
                 
                 seed_for_trueb=[0]; % seed to be used when we are generating trueb randomly, otherwise will not be used
                  
-                nDcol=nDcol_values(p_ctr);     % give the no. of dependent columns we want to add to xMatrix
                 infoCol=infoCol_values(p_ctr);  % how many informative/correlated columns we want to add to the xMatrix. Only makes the first infoCol no. of cols of xMatrix correlated
         
                 % corrflag and rho only get used when generating covariance matrix sigma MANUALLY 
@@ -90,8 +86,6 @@ for inp_file_ctr=1:num_inp_files % go over each pair of example and algorithm in
                 % D_t defines a matrix of order pDim by nDcol with independent columns with integer entries in the range [-2 2], check line 286
                 snr=snr_values(p_ctr);   % signal to noise ratio, will be used to calculate the sd for the noise epsilon
                 
-                check_nDcol=0;  % if nDcol is non-zero as defined above then check_nDcol is taken to be 1 internally
-                %  however, if nDcol=0 and check_nDcol=1 then find the Dependent col columns of xMatrix and use dimension reduction
                 numOfEgs=nEgs_eachpDim(p_ctr);  % define how many examples we want to run, should be same as the length of chooseEgsToRun array below
                 n_non_zeros_trueb=n_non_zeros_trueb_values(p_ctr);  % define the number of 0s in randomly generated trueb
                 
@@ -123,35 +117,27 @@ for inp_file_ctr=1:num_inp_files % go over each pair of example and algorithm in
         
                 end
                 
-                
                 [corrMatrix_MeanVecPoolFilePath,mu,sigma]=corrMatrix_MeanVecPool(infoCol,rho,corrflag);  % defined at the end of this subroutine, set the covariance matrix in that subroutine accordingly
                 % save a copy of the file 
                 getFileName=strsplit( corrMatrix_MeanVecPoolFilePath,filesep  );backupFile=fullfile( pwd,append(getFileName{length(getFileName)},'_copy.m') );copyfile(strcat( corrMatrix_MeanVecPoolFilePath,'.m' ),backupFile);
-        
-                
-                                
-                                
+                                     
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% End of user defined input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                saveIntermOutput=struct('FbestIter',intermFbestIter,'MaxIter',intermMaxIter,'CPU',intermCPU);
                 inputFileNameLocation.mainfile=mainfile;
                 inputFileNameLocation.egParafile=egParafile;
                 inputFileNameLocation.algoParafile=algoParafile;
 
-                [out]=gen_model_para(p_dim,n_pts,infoCol,nDcol,k_values,num_instances,numOfSets,numOfEgs,seed_for_num_instances,seed_for_set_of_exs,...
-                            seed_for_ex,chooseEgsToRun,snr,mu,sigma, giveValuesOf_b,seedForTruebAllEgs,check_nDcol,chooseParaToRun,IotherPara,IstopCondPara, ...
-                            QuadMinFunPara,rPara,iPara,inp_file_ctr,p_ctr,saveIntermOutput,inputFileNameLocation,toUseRealDataFile,to_debug,...
-                            tod_date,level7dirpath,level8dirpath);
+                [out]=gen_model_para(p_dim,n_pts,k_values,num_instances,numOfSets,numOfEgs,seed_for_num_instances,seed_for_set_of_exs,...
+                            seed_for_ex,chooseEgsToRun,snr,mu,sigma, giveValuesOf_b,chooseParaToRun,IotherPara,IstopCondPara, ...
+                            QuadMinFunPara,rPara,iPara,inp_file_ctr,p_ctr,toUseRealDataFile,to_debug,...
+                            tod_date,level8dirpath);
                 
                     
                 % save data for all pDimValues all egs for performance profile plots
                 cpu_each_inp_file{p_ctr}=out.cpuDataForPlot;fbest_each_inp_file{p_ctr}=out.fbestDataForPlot;niter_each_inp_file{p_ctr}=out.niterDataForPlot;stop_flag_each_inp_file{p_ctr}=out.stopflagData;
                 
-                if maxVioRefQMoverpDim<out.maxVioRefQMoverSet,maxVioRefQMoverpDim=out.maxVioRefQMoverSet; end
-                if maxVioInfQMoverpDim<out.maxVioInfQMoverSet,maxVioInfQMoverpDim=out.maxVioInfQMoverSet; end
-                
                 level7fileid=fopen(sprintf('timestampL7pDim%d.txt',p_dim),'a+');
                 outtimelevel7=datetime('now');outcputimelevel7=(cputime-incputimelevel7)/60;fprintf(level7fileid,'start time=%s \n',outtimelevel7);fprintf(level7fileid,'Wall clock time taken for the run = %1.8f min \n',minutes(outtimelevel7-intimelevel7)); % timestamp level0 at the end
-                fprintf(level7fileid,'cputime to run pDim %d from the input file pair %d is %1.8f min\n',p_ctr,inp_file_ctr,outcputimelevel7);fprintf(level7fileid,'maxVioRefQM=%1.8f and maxVioInfQM=%1.8f for pDim=%d \n', out.maxVioRefQMoverSet,out.maxVioInfQMoverSet,pDim_values(p_ctr));
+                fprintf(level7fileid,'cputime to run pDim %d from the input file pair %d is %1.8f min\n',p_ctr,inp_file_ctr,outcputimelevel7);
                 fclose(level7fileid);
 
                 %save min(fbest) over all sets for given tmax values, to be used in example input files to provide targetfbest
@@ -174,8 +160,9 @@ for inp_file_ctr=1:num_inp_files % go over each pair of example and algorithm in
         %===================================================================================================================
 
         level8fileid=fopen(sprintf('timestampL8Ctr%d.txt',inp_file_ctr),'a+');
-        outtimelevel8=datetime('now');outcputimelevel8=(cputime-incputimelevel8)/60;fprintf(level8fileid,'End time=%s \n',outtimelevel8);fprintf(level8fileid,'Wall clock time taken for the run = %1.8f min \n',minutes(outtimelevel8-intimelevel8)); % timestamp level8 at the end
-        fprintf(level8fileid,'cputime to run input file pair %d is %1.8f min \n',inp_file_ctr,outcputimelevel8);fprintf(level8fileid,'maxVioRefQM=%1.8f and maxVioInfQM=%1.8f for Input file pair=%d for all pDimvalues. \n', maxVioRefQMoverpDim,maxVioInfQMoverpDim,inp_file_ctr);
+        outtimelevel8=datetime('now');outcputimelevel8=(cputime-incputimelevel8)/60;
+        fprintf(level8fileid,'End time=%s \n',outtimelevel8);fprintf(level8fileid,'Wall clock time taken for the run = %1.8f min \n',minutes(outtimelevel8-intimelevel8)); % timestamp level8 at the end
+        fprintf(level8fileid,'cputime to run input file pair %d is %1.8f min \n',inp_file_ctr,outcputimelevel8);
         fclose(level8fileid);
 
         % update fbest,cpu and Fcalls for all input files

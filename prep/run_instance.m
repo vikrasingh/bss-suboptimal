@@ -1,4 +1,4 @@
-function  [rParaOut,numOfRows,numOfCols,T,outputPara,fbest]=run_instance(nPts,pDim,yArray,xMatrix,trueb,A,b,c,k_values,cputime_ols,...
+function  [rParaOut,numOfRows,numOfCols,T,outputPara,f_star]=run_instance(nPts,pDim,yArray,xMatrix,trueb,A,b,c,k_values,cputime_ols,...
                            x_ols,set_ctr,paraCtr,...
                            IotherPara,IstopCondPara,iPara,rPara,version_flag,...
                            level1_k_dir,level1_k_dir_path,tod_date,...
@@ -51,12 +51,12 @@ function  [rParaOut,numOfRows,numOfCols,T,outputPara,fbest]=run_instance(nPts,pD
         fprintf(textfileIntermOut,'%s \n',datetime('now'));
         if ismember(version_flag,[9 91 92 93]),fprintf(textfileIntermOut,'Iter ;fbest ;cpuSec ;fbest reduction due to refine. within that iter. ; \n');end  % for the first iteration only
 
-        [outputPara,rParaOut,Xstar,fbest]=call_algo(nPts,pDim,yArray,xMatrix,A,b,c,tmax,IstopCondPara,IotherPara,iPara,rPara,version_flag,x_ols,textfileIntermOut,toDebug);
+        [outputPara,rParaOut,x_star,f_star]=call_algo(nPts,pDim,yArray,xMatrix,A,b,c,tmax,IstopCondPara,IotherPara,iPara,rPara,version_flag,x_ols,textfileIntermOut,toDebug);
         fprintf(textfileIntermOut,'%s \n',datetime('now'));
         fclose(textfileIntermOut); 
         colIndex=colIndex+1;
         % Calculate the distance bw the boundary of the box and Xstar
-        dataCol=[fbest;outputPara(7);rParaOut.cpuIntvalAlgo/60;outputPara(5);Xstar];  % for table format
+        dataCol=[f_star;outputPara(7);rParaOut.cpu_elapsed/60;outputPara(5);x_star];  % for table format
         dataMat(:,colIndex)=dataCol;  % for table format
         header{colIndex}=string;      % header will give us the top row of the table.
         if toDebug>=1,fprintf(fileid,'Date time =%s \n',datetime('now'));fclose(fileid);end
